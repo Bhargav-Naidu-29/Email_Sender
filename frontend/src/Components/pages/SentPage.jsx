@@ -17,7 +17,9 @@ const SentPage = () => {
       setLoading(true)
       setError(null)
       const response = await emailApi.getSent()
-      setEmails(response.data)
+      // Handle both old format (array) and new format (object with data property)
+      const emailsData = Array.isArray(response.data) ? response.data : (response.data?.data || [])
+      setEmails(emailsData)
     } catch (error) {
       setError(error.response?.data?.message || 'Error fetching sent emails')
     } finally {

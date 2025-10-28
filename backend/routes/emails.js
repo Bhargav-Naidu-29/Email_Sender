@@ -3,33 +3,21 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const {
+    getGoogleAuthUrl,
+    handleGoogleCallback,
+    getEmailConfigs,
     createEmail,
     sendBulkEmails,
-    addEmailConfig,
     deleteEmailConfig,
     getSentEmails,
     getEmailStats
 } = require('../controllers/emailController');
-const User = require('../models/User');
 
 // Get email configurations
-router.get('/configs', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user._id);
-        const configs = user.emailConfigs.map(config => ({
-            senderEmail: config.senderEmail
-        }));
-        res.json(configs);
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
+router.get('/configs', auth, getEmailConfigs);
 
-// Add email configuration
-router.post('/add-email-config', auth, [
-    body('senderEmail').isEmail().withMessage('Valid sender email is required'),
-    body('appPassword').notEmpty().withMessage('App password is required')
-], addEmailConfig);
+// Get Google Auth URL (initiate OAuth flow)
+router.get('/google-auth', auth, getGoogleAuthUrl);
 
 // Create email campaign
 router.post('/create', auth, [
@@ -52,5 +40,8 @@ router.get('/stats', auth, getEmailStats);
 router.post('/delete-email-config', auth, [
     body('senderEmail').isEmail().withMessage('Valid sender email is required')
 ], deleteEmailConfig);
+
+// Google OAuth callback (no auth middleware - this is a public callback)
+router.get('/google-callback', handleGoogleCallback);
 
 module.exports = router; 

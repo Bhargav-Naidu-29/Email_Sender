@@ -9,8 +9,8 @@ class PasswordEncryption {
     initializeEncryptionKey() {
         if (!process.env.ENCRYPTION_KEY) {
             const generatedKey = crypto.randomBytes(32).toString('hex');
-            console.log('\x1b[33m%s\x1b[0m', `Warning: No ENCRYPTION_KEY found in environment variables.`);
-            console.log('\x1b[32m%s\x1b[0m', `Generated new key: ${generatedKey}`);
+            // console.log('\x1b[33m%s\x1b[0m', `Warning: No ENCRYPTION_KEY found in environment variables.`);
+            // console.log('\x1b[32m%s\x1b[0m', `Generated new key: ${generatedKey}`);
             console.log('\x1b[33m%s\x1b[0m', `Please add this key to your .env file as ENCRYPTION_KEY=${generatedKey}`);
             this.encryptionKey = Buffer.from(generatedKey, 'hex');
         } else {

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Upload, FileText, X, Eye, Send, Users, Mail, AlertCircle, CheckCircle, Download, Zap, Clock, Target, Settings } from 'lucide-react'
+import { Upload, FileText, X, Eye, Send, Users, Mail, AlertCircle, CheckCircle, Download } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import Papa from 'papaparse'
 import { emailApi } from '../../services/api'
@@ -169,8 +169,6 @@ const DraftPage = () => {
   const [previewData, setPreviewData] = useState(null)
   const [emailConfigs, setEmailConfigs] = useState([])
   const [selectedEmailConfig, setSelectedEmailConfig] = useState('')
-  const [showEmailConfigModal, setShowEmailConfigModal] = useState(false)
-  const [newEmailConfig, setNewEmailConfig] = useState({ senderEmail: '', appPassword: '' })
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false)
   const [emailToDelete, setEmailToDelete] = useState('')
   const fileInputRef = useRef(null)
@@ -178,44 +176,54 @@ const DraftPage = () => {
   // Fetch email configurations on mount
   useEffect(() => {
     fetchEmailConfigs()
+    // Check for OAuth callback messages
+    const urlParams = new URLSearchParams(window.location.search)
+    const authParam = urlParams.get('auth')
+    if (authParam === 'success') {
+      setSuccess('Gmail account connected successfully!')
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/draft')
+      // Refresh email configs
+      setTimeout(() => fetchEmailConfigs(), 500)
+    } else if (authParam === 'failed' || authParam === 'error') {
+      setError('Failed to connect Gmail account. Please try again.')
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/draft')
+    }
   }, [])
 
   const fetchEmailConfigs = async () => {
     try {
       const response = await emailApi.getEmailConfigs()
-      setEmailConfigs(response.data)
-      if (response.data.length > 0) {
-        setSelectedEmailConfig(response.data[0].senderEmail)
+      // Response format: { success: true, data: [...] }
+      const configs = response.data.data || []
+      setEmailConfigs(configs)
+      if (configs.length > 0) {
+        // Find first valid config, or use the first one available
+        const validConfig = configs.find(cfg => !cfg.invalid)
+        setSelectedEmailConfig(validConfig ? validConfig.senderEmail : configs[0].senderEmail)
       }
     } catch (error) {
       console.error('Error fetching email configs:', error)
     }
   }
 
-  const handleAddEmailConfig = async () => {
+  const handleConnectGmail = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      if (!newEmailConfig.senderEmail || !newEmailConfig.appPassword) {
-        setError('Please fill in all fields');
-        return;
-      }
-
-      const response = await emailApi.addEmailConfig(newEmailConfig);
+      const response = await emailApi.getGoogleAuthUrl();
       
       if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to add email configuration');
+        throw new Error(response.data.message || 'Failed to get Google auth URL');
       }
 
-      await fetchEmailConfigs();
-      setShowEmailConfigModal(false);
-      setNewEmailConfig({ senderEmail: '', appPassword: '' });
-      setSuccess('Email configuration added successfully');
+      // Redirect to Google's OAuth consent screen
+      window.location.href = response.data.authUrl;
     } catch (error) {
-      console.error('Add email config error:', error);
-      setError(error.response?.data?.message || error.message || 'Error adding email configuration');
-    } finally {
+      console.error('Connect Gmail error:', error);
+      setError(error.response?.data?.message || error.message || 'Error connecting Gmail account');
       setLoading(false);
     }
   };
@@ -501,7 +509,22 @@ const DraftPage = () => {
       setSuccess(`Campaign sent successfully to ${processedRecipients.length} recipients!`)
     } catch (error) {
       console.error('Email sending error:', error)
-      setError(error.response?.data?.message || error.message || 'Error sending emails')
+      
+      // Handle specific error types
+      const errorData = error.response?.data
+      let errorMessage = error.message || 'Error sending emails'
+      
+      if (errorData) {
+        if (errorData.requiresReauth) {
+          errorMessage = `${errorData.message || 'Authentication failed'}. Please delete and re-connect your Gmail account for ${selectedEmailConfig}.`
+        } else if (errorData.requiresAuth) {
+          errorMessage = errorData.message || 'Please authenticate your Gmail account first.'
+        } else {
+          errorMessage = errorData.message || errorMessage
+        }
+      }
+      
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -528,58 +551,6 @@ const DraftPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Email Config Modal */}
-      {showEmailConfigModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-[#521C0D] mb-4">Add Email Configuration</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#521C0D] mb-2">
-                  Sender Email
-                </label>
-                <input
-                  type="email"
-                  value={newEmailConfig.senderEmail}
-                  onChange={(e) => setNewEmailConfig(prev => ({ ...prev, senderEmail: e.target.value }))}
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-3 bg-white border border-[#521C0D]/20 rounded-xl text-[#521C0D] placeholder-[#521C0D]/60 focus:outline-none focus:ring-2 focus:ring-[#FF9B45] focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#521C0D] mb-2">
-                  App Password
-                </label>
-                <input
-                  type="password"
-                  value={newEmailConfig.appPassword}
-                  onChange={(e) => setNewEmailConfig(prev => ({ ...prev, appPassword: e.target.value }))}
-                  placeholder="Enter app password"
-                  className="w-full px-4 py-3 bg-white border border-[#521C0D]/20 rounded-xl text-[#521C0D] placeholder-[#521C0D]/60 focus:outline-none focus:ring-2 focus:ring-[#FF9B45] focus:border-transparent"
-                />
-                <p className="text-xs text-[#521C0D]/60 mt-2">
-                  Use an app password from your email provider's security settings
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowEmailConfigModal(false)}
-                className="flex-1 px-4 py-2 border border-[#521C0D]/20 text-[#521C0D] rounded-xl hover:bg-[#521C0D]/10 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddEmailConfig}
-                disabled={!newEmailConfig.senderEmail || !newEmailConfig.appPassword || loading}
-                className="flex-1 px-4 py-2 bg-[#D5451B] text-white rounded-xl hover:bg-[#521C0D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Adding...' : 'Add Configuration'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirmModal && (
@@ -826,11 +797,12 @@ const DraftPage = () => {
                 Email Configuration
               </h3>
               <button
-                onClick={() => setShowEmailConfigModal(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-[#521C0D]/10 text-[#521C0D] rounded-lg hover:bg-[#521C0D]/20 transition-colors"
+                onClick={handleConnectGmail}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-[#D5451B] text-white rounded-lg hover:bg-[#521C0D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Settings size={16} />
-                Add Email
+                <Mail size={16} />
+                Connect Gmail
               </button>
             </div>
             
@@ -848,9 +820,9 @@ const DraftPage = () => {
                           selectedEmailConfig === config.senderEmail 
                             ? 'border-[#FF9B45] bg-[#FF9B45]/10 shadow-sm' 
                             : 'border-[#521C0D]/20 hover:border-[#FF9B45]/50 hover:bg-[#FF9B45]/5'
-                        }`}
+                        } ${config.invalid ? 'border-red-300 bg-red-50' : ''}`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1">
                           <input
                             type="radio"
                             id={config.senderEmail}
@@ -858,15 +830,21 @@ const DraftPage = () => {
                             value={config.senderEmail}
                             checked={selectedEmailConfig === config.senderEmail}
                             onChange={(e) => setSelectedEmailConfig(e.target.value)}
-                            className="text-[#FF9B45] focus:ring-[#FF9B45] focus:ring-2"
+                            disabled={config.invalid}
+                            className="text-[#FF9B45] focus:ring-[#FF9B45] focus:ring-2 disabled:cursor-not-allowed"
                           />
                           <label 
                             htmlFor={config.senderEmail}
-                            className="text-[#521C0D] cursor-pointer font-medium"
+                            className={`${config.invalid ? 'line-through text-red-600' : 'text-[#521C0D]'} cursor-pointer font-medium flex items-center gap-2 flex-1`}
                           >
                             {config.senderEmail}
+                            {config.invalid && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full border border-red-300">
+                                Invalid - Re-authenticate
+                              </span>
+                            )}
                           </label>
-                          {selectedEmailConfig === config.senderEmail && (
+                          {selectedEmailConfig === config.senderEmail && !config.invalid && (
                             <span className="px-2 py-1 bg-[#FF9B45] text-white text-xs rounded-full">
                               Selected
                             </span>
@@ -874,7 +852,7 @@ const DraftPage = () => {
                         </div>
                         <button
                           onClick={() => initiateDeleteEmailConfig(config.senderEmail)}
-                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors group"
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors group ml-2"
                           title="Delete this email configuration"
                           disabled={loading}
                         >

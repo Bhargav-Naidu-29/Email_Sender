@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
       trim: true,
       lowercase: true
     },
-    encryptedAppPassword: {
+    encryptedRefreshToken: {
       encrypted: {
         type: String,
         required: true
@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
       }
+    },
+    invalid: {
+      type: Boolean,
+      default: false
     }
   }],
   createdAt: {

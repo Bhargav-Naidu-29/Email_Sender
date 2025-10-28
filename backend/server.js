@@ -11,10 +11,9 @@ dotenv.config();
 
 const app = express();
 
-// CORS Configuration - FIXED
 const allowedOrigins = process.env.FRONTEND_URL 
   ? process.env.FRONTEND_URL.split(',').map(o => o.trim().replace(/\/+$/, ''))
-  : ['http://localhost:3000', 'http://localhost:3001', 'https://localhost:3000']; // fallback for development
+  : ['http://localhost:3000', 'http://localhost:3001', 'https://localhost:3000', 'http://localhost:5173']; // fallback for development
 
 console.log(" FRONTEND_URL:", process.env.FRONTEND_URL);
 console.log(" allowedOrigins:", allowedOrigins);
@@ -215,7 +214,7 @@ app.use((error, req, res, next) => {
 });
 
 // Database connection
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
