@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://email-sender-arfu.onrender.com/api';
+const API_BASE_URL = 'https://email-sender-arfu.onrender.com/api';
 
 if (import.meta.env.DEV) {
   console.log('API Base URL:', API_BASE_URL);
