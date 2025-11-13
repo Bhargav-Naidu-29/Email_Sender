@@ -1,8 +1,14 @@
 const User = require('../models/User'); // Changed from users to User
 const jwt = require('jsonwebtoken');
 
+// Resolve JWT secret with a safe fallback in development only
+const JWT_SECRET = process.env.SECRET_KEY || (process.env.NODE_ENV !== 'production' ? 'dev_secret_change_me' : undefined);
+
 const createToken = (_id) => {
-    return jwt.sign({_id}, process.env.SECRET_KEY, {expiresIn : '2d'});
+    if (!JWT_SECRET) {
+        throw new Error('Missing SECRET_KEY. Set it in backend .env for JWT signing.');
+    }
+    return jwt.sign({ _id }, JWT_SECRET, { expiresIn: '2d' });
 }
 
 //login 

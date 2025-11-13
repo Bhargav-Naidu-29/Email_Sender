@@ -22,7 +22,10 @@ const APP_REDIRECT_URI = `${BACKEND_URL}/api/emails/google-callback`;
 
 function createOAuthClient() {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-    throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set in environment variables');
+    const missing = [];
+    if (!GOOGLE_CLIENT_ID) missing.push('GOOGLE_CLIENT_ID');
+    if (!GOOGLE_CLIENT_SECRET) missing.push('GOOGLE_CLIENT_SECRET');
+    throw new Error(`Missing required Google OAuth credentials: ${missing.join(', ')}. Please set these in your backend .env file.`);
   }
   return new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_REDIRECT_URI);
 }
@@ -34,6 +37,7 @@ function createOAuthClient() {
  */
 const getGoogleAuthUrl = (req, res) => {
   try {
+    console.log('🔐 Generating Google OAuth URL for user:', req.user._id);
     const oAuth2Client = createOAuthClient();
 
     // 'prompt: consent' helps to get refresh token on first consent.
@@ -47,11 +51,21 @@ const getGoogleAuthUrl = (req, res) => {
     };
 
     const authorizeUrl = oAuth2Client.generateAuthUrl(authOptions);
+    console.log('✅ Google OAuth URL generated successfully');
+    console.log('   Redirect URI:', APP_REDIRECT_URI);
 
     res.json({ success: true, authUrl: authorizeUrl });
   } catch (error) {
-    console.error('Error generating Google auth URL:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate authorization URL', error: error.message });
+    console.error('❌ Error generating Google auth URL:', error);
+    // Provide more specific error message
+    const errorMessage = error.message.includes('Missing required') 
+      ? error.message 
+      : `Failed to generate authorization URL: ${error.message}`;
+    res.status(500).json({ 
+      success: false, 
+      message: errorMessage,
+      error: error.message 
+    });
   }
 };
 

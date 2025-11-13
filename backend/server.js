@@ -2,12 +2,41 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+
+// Load environment variables BEFORE loading any route/controller modules
+dotenv.config();
+
+// Ensure JWT secret configured; set safe dev fallback locally only
+if (!process.env.SECRET_KEY) {
+  if (process.env.NODE_ENV !== 'production') {
+    process.env.SECRET_KEY = 'dev_secret_change_me';
+    console.warn('⚠️  SECRET_KEY not set. Using development fallback. Do NOT use in production.');
+  } else {
+    console.error('❌ SECRET_KEY is required in production. Set it in environment variables.');
+    // Exit early to avoid runtime auth errors
+    process.exit(1);
+  }
+}
+
+// Check Google OAuth credentials configuration
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  console.log('✅ Google OAuth credentials configured');
+  console.log(`   Client ID: ${process.env.GOOGLE_CLIENT_ID.substring(0, 30)}...`);
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+  console.log(`   Redirect URI: ${backendUrl}/api/emails/google-callback`);
+  console.log('   Make sure this redirect URI is added to your Google OAuth credentials!');
+} else {
+  console.warn('⚠️  Google OAuth credentials not configured:');
+  if (!process.env.GOOGLE_CLIENT_ID) console.warn('   - GOOGLE_CLIENT_ID is missing');
+  if (!process.env.GOOGLE_CLIENT_SECRET) console.warn('   - GOOGLE_CLIENT_SECRET is missing');
+  console.warn('   Gmail connection feature will not work until these are set in your .env file.');
+  console.warn('   Get credentials from: https://console.cloud.google.com/apis/credentials');
+}
+
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/emails');
 const templateRoutes = require('./routes/templates');
 const dataRoutes = require('./routes/data');
-
-dotenv.config();
 
 const app = express();
 

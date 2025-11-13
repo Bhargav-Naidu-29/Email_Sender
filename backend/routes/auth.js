@@ -19,6 +19,8 @@ const validateLogin = [
   body('password').notEmpty().withMessage('Password is required')
 ];
 
+const JWT_SECRET = process.env.SECRET_KEY || (process.env.NODE_ENV !== 'production' ? 'dev_secret_change_me' : undefined);
+
 // Signup route
 router.post('/signup', validateSignup, async (req, res) => {
   try {
@@ -42,9 +44,13 @@ router.post('/signup', validateSignup, async (req, res) => {
     await user.save();
     console.log("User saved:", user._id);
 
+    if (!JWT_SECRET) {
+      return res.status(500).json({ success: false, message: 'Server missing SECRET_KEY configuration' });
+    }
+
     const token = jwt.sign(
       { userId: user._id },
-      process.env.SECRET_KEY,
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -85,7 +91,11 @@ router.post('/login', validateLogin, async (req, res) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, {
+    if (!JWT_SECRET) {
+      return res.status(500).json({ success: false, message: 'Server missing SECRET_KEY configuration' });
+    }
+
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
       expiresIn: '24h'
     });
 
