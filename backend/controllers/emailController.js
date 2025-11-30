@@ -323,6 +323,7 @@ const sendBulkEmails = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'User associated with this campaign not found.' });
 
     console.log('👤 User found:', user.userName);
+    console.log("ok");
     console.log('📋 Available email configs:', (user.emailConfigs || []).map(cfg => `${cfg.senderEmail} (invalid: ${cfg.invalid})`).join(', '));
     console.log('🔍 Looking for email config matching:', campaign.senderEmail);
 
