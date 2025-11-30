@@ -18,7 +18,9 @@ const getBackendUrl = () => {
 };
 
 const BACKEND_URL = getBackendUrl();
-const APP_REDIRECT_URI = `${BACKEND_URL}/api/emails/google-callback`;
+// Allow explicit override via env var so redirect URIs match Google Console exactly when needed
+// Fallback to computed backend URL for local/dev convenience
+const APP_REDIRECT_URI = process.env.GOOGLE_CALLBACK_URL || `${BACKEND_URL}/api/emails/google-callback`;
 
 function createOAuthClient() {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
