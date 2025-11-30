@@ -401,7 +401,7 @@ const sendBulkEmails = async (req, res) => {
            clientSecret: GOOGLE_CLIENT_SECRET,
            refreshToken: decryptedRefreshToken,
            accessToken: accessToken,  // Pass the freshly obtained token
-           expires: tokenExpiry
+           accessTokenExpires: expiresIn
          },
          // Enable OAuth2 debugging
          debug: true
@@ -411,11 +411,10 @@ const sendBulkEmails = async (req, res) => {
        const refreshAccessToken = async () => {
          console.log('🔄 Refreshing access token...');
          const result = await obtainAccessTokenFromRefresh(oAuth2Client, decryptedRefreshToken);
-         const newExpiry = Math.floor(Date.now() / 1000) + result.expiresIn;
-         tokenExpiry = newExpiry; // Update the closure variable
+         tokenExpiry = Math.floor(Date.now() / 1000) + result.expiresIn; // Update the closure variable
          transporter.options.auth.accessToken = result.accessToken;
-         transporter.options.auth.expires = newExpiry;
-         console.log('✅ Access token refreshed, new expiry:', newExpiry);
+         transporter.options.auth.accessTokenExpires = result.expiresIn;
+         console.log('✅ Access token refreshed, new expiry in:', result.expiresIn, 'seconds');
          return result.accessToken;
        };
 
